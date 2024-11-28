@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CRM Remarks</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      width: 350px;
+      padding: 20px;
+      background-color: #f0f2f5;
+      margin: 0;
+    }
+    h3 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 20px;
+    }
+    #upload-area {
+      border: 2px dashed #ccc;
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+      margin-bottom: 20px;
+      background-color: #fff;
+      transition: all 0.3s ease;
+      min-height: 150px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #upload-area.hover {
+      border-color: #007BFF;
+      background-color: #e9f5ff;
+    }
+    #upload-area p {
+      margin: 0;
+      color: #777;
+      font-size: 14px;
+    }
+    label.input-label {
+      font-weight: bold;
+      margin-bottom: 5px;
+      display: block;
+      color: #555;
+    }
+    select, textarea, input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+      background-color: #fff;
+      box-sizing: border-box;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+    input[type="text"]:read-only {
+      background-color: #e9ecef;
+      color: #6c757d;
+    }
+    #submit-btn {
+      width: 100%;
+      padding: 12px;
+      background-color: #007BFF;
+      border: none;
+      border-radius: 5px;
+      color: #fff;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    #submit-btn:hover {
+      background-color: #0056b3;
+    }
+    #submit-btn:active {
+      background-color: #004080;
+    }
+    img, video {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h3>Upload Media</h3>
+  <div id="upload-area">
+    <p>Drag & Drop or Paste Media Here</p>
+  </div>
+
+  <label class="input-label" for="asin-select">ASIN ID:</label>
+  <select id="asin-select">
+    <option value="">Select ASIN ID</option>
+    <!-- ASIN IDs will be populated here -->
+  </select>
+
+  <label class="input-label" for="remarks">Remarks:</label>
+  <textarea id="remarks" placeholder="Enter remarks here..."></textarea>
+
+  <label class="input-label" for="product-link">Product Link:</label>
+  <input type="text" id="product-link" placeholder="Product Link" readonly />
+
+  <button id="submit-btn">Submit</button>
+
+  <script src="popup.js"></script>
+</body>
+</html>
