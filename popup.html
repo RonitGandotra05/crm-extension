@@ -164,6 +164,29 @@
       max-height: 150px;
       border-radius: 5px;
     }
+
+    /* ASIN Input and Datalist Styles */
+    #asin-input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+      background-color: #fff;
+      box-sizing: border-box;
+    }
+
+    #asin-datalist {
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    #asin-input:focus {
+      border-color: #007BFF;
+      outline: none;
+      box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+    }
   </style>
 </head>
 <body>
@@ -198,11 +221,11 @@
     </div>
 
     <!-- ASIN Selection -->
-    <label class="input-label" for="asin-select">ASIN ID:</label>
-    <select id="asin-select" required>
-      <option value="">Select ASIN ID</option>
+    <label class="input-label" for="asin-input">ASIN ID:</label>
+    <input list="asin-datalist" id="asin-input" name="asin-input" placeholder="Type or select ASIN ID" required />
+    <datalist id="asin-datalist">
       <!-- ASIN IDs will be dynamically populated here -->
-    </select>
+    </datalist>
 
     <!-- SKU ID Display -->
     <label class="input-label" for="sku-id">SKU ID:</label>

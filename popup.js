@@ -8,7 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const mainContent = document.getElementById('main-content');
   const uploadArea = document.getElementById('upload-area');
-  const asinSelect = document.getElementById('asin-select');
+  const asinInput = document.getElementById('asin-input');
+  const asinDatalist = document.getElementById('asin-datalist');
   const skuIdInput = document.getElementById('sku-id');
   const imageLinkInput = document.getElementById('image-link');
   const imagePreviewDiv = document.getElementById('image-preview');
@@ -23,7 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let selectedFile = null;
   let asinInfoData = []; // To store asin_info fetched from backend
-  const backendUrl = 'http://localhost:8080'
+  const backendUrl = 'http://localhost:8080'; // Update to your local backend URL
+
   /**
    * Initialize the extension by checking authentication status.
    */
@@ -137,12 +139,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setupUploadAreaEvents();
     submitBtn.addEventListener('click', handleSubmit);
     logoutBtn.addEventListener('click', handleLogout);
-    asinSelect.addEventListener('change', handleASINSelection);
+    asinInput.addEventListener('input', handleASINInput);
   }
 
   /**
-   * Populate ASIN IDs into the select dropdown.
-   * Fetches asin_info from the backend and populates the dropdown.
+   * Populate ASIN IDs into the datalist.
+   * Fetches asin_info from the backend and populates the datalist.
    */
   function populateASINOptions() {
     // Retrieve JWT token from storage
@@ -175,14 +177,13 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           // Clear existing options
-          asinSelect.innerHTML = '<option value="">Select ASIN ID</option>';
+          asinDatalist.innerHTML = '';
 
           // Populate new options
           asinInfoData.forEach((asin) => {
             const option = document.createElement('option');
             option.value = asin.asin_id;
-            option.textContent = asin.asin_id;
-            asinSelect.appendChild(option);
+            asinDatalist.appendChild(option);
           });
         })
         .catch((error) => {
@@ -193,14 +194,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
-   * Handle ASIN selection change.
-   * Updates SKU ID and Image Link fields based on selected ASIN ID.
+   * Handle ASIN input changes.
+   * Updates SKU ID and Image Link fields based on entered ASIN ID.
    */
-  function handleASINSelection() {
-    const selectedASIN = asinSelect.value;
+  function handleASINInput() {
+    const enteredASIN = asinInput.value.trim();
 
-    if (!selectedASIN) {
-      // If no ASIN is selected, clear the fields
+    if (!enteredASIN) {
+      // If input is empty, clear the fields
       skuIdInput.value = '';
       imageLinkInput.value = '';
       imagePreviewImg.src = '';
@@ -208,8 +209,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Find the selected asin info
-    const asinInfo = asinInfoData.find((asin) => asin.asin_id === selectedASIN);
+    // Find the entered asin info
+    const asinInfo = asinInfoData.find((asin) => asin.asin_id === enteredASIN);
 
     if (asinInfo) {
       skuIdInput.value = asinInfo.sku_id;
@@ -222,7 +223,8 @@ document.addEventListener('DOMContentLoaded', () => {
       imageLinkInput.value = '';
       imagePreviewImg.src = '';
       imagePreviewDiv.classList.add('hidden');
-      alert('Selected ASIN ID not found.');
+      // Optionally, alert the user
+      // alert('Entered ASIN ID not found.');
     }
   }
 
@@ -347,7 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const asin = asinSelect.value;
+    const asin = asinInput.value.trim();
     const remarksText = remarksInput.value.trim();
     const productLink = productLinkInput.value.trim();
 
@@ -450,11 +452,22 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         // No body is needed as per the backend endpoint
       })
-        .then((response) => {
+        .then(async (response) => {
           if (response.ok) {
-            return response.json();
+            const data = await response.json();
+            return data;
           } else {
-            throw new Error('Failed to logout. Please try again.');
+            // Attempt to parse error message from response
+            let errorMsg = 'Failed to logout. Please try again.';
+            try {
+              const errorData = await response.json();
+              if (errorData.detail) {
+                errorMsg = errorData.detail;
+              }
+            } catch (e) {
+              // Ignore JSON parsing errors
+            }
+            throw new Error(errorMsg);
           }
         })
         .then((data) => {
@@ -480,13 +493,48 @@ document.addEventListener('DOMContentLoaded', () => {
   function resetForm() {
     selectedFile = null;
     uploadArea.innerHTML = '<p>Drag & Drop or Paste Media Here</p>';
-    asinSelect.value = '';
+    asinInput.value = '';
     skuIdInput.value = '';
     imageLinkInput.value = '';
     imagePreviewImg.src = '';
     imagePreviewDiv.classList.add('hidden');
     remarksInput.value = '';
     productLinkInput.value = '';
+  }
+
+  /**
+   * Handle ASIN selection via input event.
+   * Updates SKU ID and Image Link fields based on entered ASIN ID.
+   */
+  function handleASINInput() {
+    const enteredASIN = asinInput.value.trim();
+
+    if (!enteredASIN) {
+      // If input is empty, clear the fields
+      skuIdInput.value = '';
+      imageLinkInput.value = '';
+      imagePreviewImg.src = '';
+      imagePreviewDiv.classList.add('hidden');
+      return;
+    }
+
+    // Find the entered asin info
+    const asinInfo = asinInfoData.find((asin) => asin.asin_id === enteredASIN);
+
+    if (asinInfo) {
+      skuIdInput.value = asinInfo.sku_id;
+      imageLinkInput.value = asinInfo.image_link;
+      imagePreviewImg.src = asinInfo.image_link;
+      imagePreviewDiv.classList.remove('hidden');
+    } else {
+      // If asin_id not found in data, clear the fields
+      skuIdInput.value = '';
+      imageLinkInput.value = '';
+      imagePreviewImg.src = '';
+      imagePreviewDiv.classList.add('hidden');
+      // Optionally, alert the user
+      // alert('Entered ASIN ID not found.');
+    }
   }
 
   // Event Listeners
