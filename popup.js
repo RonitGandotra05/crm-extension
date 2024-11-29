@@ -1,239 +1,497 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', () => {
+  // DOM Elements
   const loginForm = document.getElementById('login-form');
   const emailInput = document.getElementById('email');
   const passwordInput = document.getElementById('password');
   const loginBtn = document.getElementById('login-btn');
+  const loginLoader = document.getElementById('login-loader');
 
   const mainContent = document.getElementById('main-content');
   const uploadArea = document.getElementById('upload-area');
   const asinSelect = document.getElementById('asin-select');
-  const remarks = document.getElementById('remarks');
+  const skuIdInput = document.getElementById('sku-id');
+  const imageLinkInput = document.getElementById('image-link');
+  const imagePreviewDiv = document.getElementById('image-preview');
+  const imagePreviewImg = document.getElementById('image-preview-img');
+  const remarksInput = document.getElementById('remarks');
   const productLinkInput = document.getElementById('product-link');
   const submitBtn = document.getElementById('submit-btn');
+  const submitLoader = document.getElementById('submit-loader');
+
+  const logoutBtn = document.getElementById('logout-btn');
+  const logoutLoader = document.getElementById('logout-loader');
+
   let selectedFile = null;
-
-  const backendUrl = 'https://crm.tripxap.com'; // Backend URL
-
-  // Check if user is logged in
-  chrome.storage.local.get('jwtToken', function(result) {
-    if (result.jwtToken) {
-      // User is logged in
-      loginForm.style.display = 'none';
-      mainContent.style.display = 'block';
-      initMainContent();
-    } else {
-      // User is not logged in
-      loginForm.style.display = 'block';
-      mainContent.style.display = 'none';
-    }
-  });
-
-  // Login button click handler
-  loginBtn.addEventListener('click', function() {
-    const email = emailInput.value;
-    const password = passwordInput.value;
-
-    if (!email || !password) {
-      alert('Please enter email and password.');
-      return;
-    }
-
-    loginUser(email, password);
-  });
-
-  function loginUser(email, password) {
-    fetch(`${backendUrl}/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: `email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`
-    })
-    .then(response => {
-      if (response.ok) {
-        return response.json();
+  let asinInfoData = []; // To store asin_info fetched from backend
+  const backendUrl = 'http://localhost:8080'
+  /**
+   * Initialize the extension by checking authentication status.
+   */
+  function initialize() {
+    chrome.storage.local.get('jwtToken', (result) => {
+      if (result.jwtToken) {
+        showMainContent();
+        initializeMainContent();
       } else {
-        alert('Invalid email or password.');
-        throw new Error('Invalid credentials');
+        showLoginForm();
       }
-    })
-    .then(data => {
-      const token = data.access_token;
-      chrome.storage.local.set({'jwtToken': token}, function() {
-        // Logged in successfully
-        loginForm.style.display = 'none';
-        mainContent.style.display = 'block';
-        initMainContent();
-      });
-    })
-    .catch(error => {
-      console.error('Error during login:', error);
     });
   }
 
-  function initMainContent() {
-    // Populate ASIN IDs (Replace with actual ASIN IDs)
-    const asinIds = ['ASIN1', 'ASIN2', 'ASIN3']; // Add your ASIN IDs here
-    asinSelect.innerHTML = '<option value="">Select ASIN ID</option>';
-    asinIds.forEach(asin => {
-      const option = document.createElement('option');
-      option.value = asin;
-      option.textContent = asin;
-      asinSelect.appendChild(option);
+  /**
+   * Display the login form and hide the main content.
+   */
+  function showLoginForm() {
+    loginForm.classList.remove('hidden');
+    mainContent.classList.add('hidden');
+  }
+
+  /**
+   * Display the main content and hide the login form.
+   */
+  function showMainContent() {
+    loginForm.classList.add('hidden');
+    mainContent.classList.remove('hidden');
+  }
+
+  /**
+   * Show loader and disable button.
+   * @param {HTMLElement} loader - The loader element to show.
+   * @param {HTMLElement} button - The button to disable.
+   */
+  function showLoader(loader, button) {
+    loader.style.display = 'block';
+    button.disabled = true;
+  }
+
+  /**
+   * Hide loader and enable button.
+   * @param {HTMLElement} loader - The loader element to hide.
+   * @param {HTMLElement} button - The button to enable.
+   */
+  function hideLoader(loader, button) {
+    loader.style.display = 'none';
+    button.disabled = false;
+  }
+
+  /**
+   * Handle user login.
+   */
+  function handleLogin() {
+    const email = emailInput.value.trim();
+    const password = passwordInput.value.trim();
+
+    if (!email || !password) {
+      alert('Please enter both email and password.');
+      return;
+    }
+
+    // Show loader and disable login button
+    showLoader(loginLoader, loginBtn);
+
+    // Prepare form data
+    const formData = new URLSearchParams();
+    formData.append('email', email);
+    formData.append('password', password);
+
+    // Send login request
+    fetch(`${backendUrl}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formData.toString(),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Invalid email or password.');
+        }
+        return response.json();
+      })
+      .then((data) => {
+        const token = data.access_token;
+        if (token) {
+          // Store JWT token
+          chrome.storage.local.set({ jwtToken: token }, () => {
+            hideLoader(loginLoader, loginBtn);
+            showMainContent();
+            initializeMainContent();
+          });
+        } else {
+          throw new Error('Authentication token not received.');
+        }
+      })
+      .catch((error) => {
+        hideLoader(loginLoader, loginBtn);
+        console.error('Login Error:', error);
+        alert(error.message);
+      });
+  }
+
+  /**
+   * Initialize the main content after successful login.
+   */
+  function initializeMainContent() {
+    populateASINOptions();
+    fetchCurrentTabURL();
+    setupUploadAreaEvents();
+    submitBtn.addEventListener('click', handleSubmit);
+    logoutBtn.addEventListener('click', handleLogout);
+    asinSelect.addEventListener('change', handleASINSelection);
+  }
+
+  /**
+   * Populate ASIN IDs into the select dropdown.
+   * Fetches asin_info from the backend and populates the dropdown.
+   */
+  function populateASINOptions() {
+    // Retrieve JWT token from storage
+    chrome.storage.local.get('jwtToken', (result) => {
+      const token = result.jwtToken;
+      if (!token) {
+        alert('Not authenticated. Please log in again.');
+        showLoginForm();
+        return;
+      }
+
+      // Fetch asin_info from backend
+      fetch(`${backendUrl}/get-asin-info/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error('Failed to fetch ASIN information.');
+          }
+          return response.json();
+        })
+        .then((data) => {
+          asinInfoData = data.asin_info;
+          if (asinInfoData.length === 0) {
+            alert('No ASIN information available.');
+            return;
+          }
+
+          // Clear existing options
+          asinSelect.innerHTML = '<option value="">Select ASIN ID</option>';
+
+          // Populate new options
+          asinInfoData.forEach((asin) => {
+            const option = document.createElement('option');
+            option.value = asin.asin_id;
+            option.textContent = asin.asin_id;
+            asinSelect.appendChild(option);
+          });
+        })
+        .catch((error) => {
+          console.error('Error fetching ASIN info:', error);
+          alert(error.message);
+        });
+    });
+  }
+
+  /**
+   * Handle ASIN selection change.
+   * Updates SKU ID and Image Link fields based on selected ASIN ID.
+   */
+  function handleASINSelection() {
+    const selectedASIN = asinSelect.value;
+
+    if (!selectedASIN) {
+      // If no ASIN is selected, clear the fields
+      skuIdInput.value = '';
+      imageLinkInput.value = '';
+      imagePreviewImg.src = '';
+      imagePreviewDiv.classList.add('hidden');
+      return;
+    }
+
+    // Find the selected asin info
+    const asinInfo = asinInfoData.find((asin) => asin.asin_id === selectedASIN);
+
+    if (asinInfo) {
+      skuIdInput.value = asinInfo.sku_id;
+      imageLinkInput.value = asinInfo.image_link;
+      imagePreviewImg.src = asinInfo.image_link;
+      imagePreviewDiv.classList.remove('hidden');
+    } else {
+      // If asin_id not found in data, clear the fields
+      skuIdInput.value = '';
+      imageLinkInput.value = '';
+      imagePreviewImg.src = '';
+      imagePreviewDiv.classList.add('hidden');
+      alert('Selected ASIN ID not found.');
+    }
+  }
+
+  /**
+   * Fetch and display the current tab's URL in the product link input.
+   */
+  function fetchCurrentTabURL() {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0] && tabs[0].url) {
+        productLinkInput.value = tabs[0].url;
+      }
+    });
+  }
+
+  /**
+   * Setup drag-and-drop and paste event listeners for the upload area.
+   */
+  function setupUploadAreaEvents() {
+    // Prevent default behavior for drag events
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach((event) => {
+      uploadArea.addEventListener(event, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
     });
 
-    // Get current tab URL
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      productLinkInput.value = tabs[0].url;
-    });
-
-    // Drag and drop events
-    uploadArea.addEventListener('dragover', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
+    // Highlight upload area on drag over
+    uploadArea.addEventListener('dragover', () => {
       uploadArea.classList.add('hover');
     });
 
-    uploadArea.addEventListener('dragleave', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
+    // Remove highlight when drag leaves
+    uploadArea.addEventListener('dragleave', () => {
       uploadArea.classList.remove('hover');
     });
 
-    uploadArea.addEventListener('drop', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
+    // Handle file drop
+    uploadArea.addEventListener('drop', (e) => {
       uploadArea.classList.remove('hover');
-      if (e.dataTransfer.files.length > 0) {
-        selectedFile = e.dataTransfer.files[0];
-        displayPreview(selectedFile);
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handleFileSelection(files[0]);
       } else {
         alert('Please drop a valid media file.');
       }
     });
 
-    // Paste event
-    uploadArea.addEventListener('paste', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
+    // Handle paste event
+    uploadArea.addEventListener('paste', (e) => {
       const items = e.clipboardData.items;
-      let found = false;
+      let fileFound = false;
+
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         if (item.kind === 'file') {
           const blob = item.getAsFile();
-          selectedFile = new File([blob], blob.name || 'pasted_image.png', { type: blob.type });
-          displayPreview(selectedFile);
-          found = true;
+          handleFileSelection(new File([blob], blob.name || 'pasted_media', { type: blob.type }));
+          fileFound = true;
           break;
         } else if (item.kind === 'string' && item.type === 'text/plain') {
-          item.getAsString(function(str) {
+          item.getAsString((str) => {
             alert('Please paste an image or video file, not text.');
           });
-          found = true;
+          fileFound = true;
+          break;
         }
       }
-      if (!found) {
+
+      if (!fileFound) {
         alert('Please paste a valid media file.');
       }
     });
-
-    submitBtn.addEventListener('click', function() {
-      if (!selectedFile) {
-        alert('Please provide a media file.');
-        return;
-      }
-      if (!asinSelect.value) {
-        alert('Please select an ASIN ID.');
-        return;
-      }
-      uploadMediaAndSaveData();
-    });
   }
 
-  function displayPreview(file) {
+  /**
+   * Handle the selected or dropped file.
+   * @param {File} file - The selected media file.
+   */
+  function handleFileSelection(file) {
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+      alert('Unsupported file type. Please upload an image or video.');
+      return;
+    }
+
+    selectedFile = file;
+    displayMediaPreview(file);
+  }
+
+  /**
+   * Display a preview of the selected media file.
+   * @param {File} file - The media file to preview.
+   */
+  function displayMediaPreview(file) {
     const reader = new FileReader();
-    reader.onload = function(e) {
-      let previewElement;
+
+    reader.onload = (e) => {
+      uploadArea.innerHTML = ''; // Clear previous content
+
       if (file.type.startsWith('image/')) {
-        previewElement = document.createElement('img');
-        previewElement.src = e.target.result;
-        previewElement.style.maxWidth = '100%';
-        previewElement.style.maxHeight = '150px';
+        const img = document.createElement('img');
+        img.src = e.target.result;
+        img.alt = 'Uploaded Image';
+        uploadArea.appendChild(img);
       } else if (file.type.startsWith('video/')) {
-        previewElement = document.createElement('video');
-        previewElement.src = e.target.result;
-        previewElement.controls = true;
-        previewElement.style.maxWidth = '100%';
-        previewElement.style.maxHeight = '150px';
-      } else {
-        alert('Unsupported file type.');
-        return;
+        const video = document.createElement('video');
+        video.src = e.target.result;
+        video.controls = true;
+        uploadArea.appendChild(video);
       }
-      uploadArea.innerHTML = '';
-      uploadArea.appendChild(previewElement);
     };
+
     reader.readAsDataURL(file);
   }
 
-  function uploadMediaAndSaveData() {
+  /**
+   * Handle the form submission to upload media and save data.
+   */
+  function handleSubmit() {
+    // Validate inputs
+    if (!selectedFile) {
+      alert('Please provide a media file.');
+      return;
+    }
+
     const asin = asinSelect.value;
-    const remarksText = remarks.value;
-    const productLink = productLinkInput.value;
+    const remarksText = remarksInput.value.trim();
+    const productLink = productLinkInput.value.trim();
 
-    // Get JWT token from storage
-    chrome.storage.local.get('jwtToken', function(result) {
-      if (result.jwtToken) {
-        const token = result.jwtToken;
+    if (!asin) {
+      alert('Please select an ASIN ID.');
+      return;
+    }
 
-        const formData = new FormData();
-        formData.append('asin', asin);
-        formData.append('remarks', remarksText);
-        formData.append('product_link', productLink);
-        formData.append('file', selectedFile);
+    if (!remarksText) {
+      alert('Please enter remarks.');
+      return;
+    }
 
-        fetch(`${backendUrl}/upload-remarks/`, {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + token
-          },
-          body: formData
-        })
-        .then(response => {
+    // Show loader and disable submit button
+    showLoader(submitLoader, submitBtn);
+
+    // Retrieve JWT token from storage
+    chrome.storage.local.get('jwtToken', (result) => {
+      const token = result.jwtToken;
+      if (!token) {
+        hideLoader(submitLoader, submitBtn);
+        alert('Not authenticated. Please log in again.');
+        showLoginForm();
+        return;
+      }
+
+      // Prepare form data
+      const formData = new FormData();
+      formData.append('asin', asin);
+      formData.append('remarks', remarksText);
+      formData.append('product_link', productLink);
+      formData.append('file', selectedFile);
+
+      // Send upload request
+      fetch(`${backendUrl}/upload-remarks/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      })
+        .then((response) => {
           if (response.ok) {
-            alert('Data uploaded successfully.');
-            // Optionally reset the form
-            resetForm();
+            return response.json();
           } else if (response.status === 401 || response.status === 403) {
-            // Token might be expired or invalid
-            alert('Session expired. Please log in again.');
-            chrome.storage.local.remove('jwtToken', function() {
-              loginForm.style.display = 'block';
-              mainContent.style.display = 'none';
-            });
+            throw new Error('Session expired. Please log in again.');
           } else {
-            response.text().then(text => {
-              alert('Failed to upload data: ' + text);
+            return response.text().then((text) => {
+              throw new Error(`Failed to upload data: ${text}`);
             });
           }
         })
-        .catch(error => {
-          console.error('Error uploading data:', error);
-          alert('Error uploading data.');
+        .then((data) => {
+          alert('Data uploaded successfully.');
+          resetForm();
+        })
+        .catch((error) => {
+          console.error('Upload Error:', error);
+          alert(error.message);
+          if (error.message.includes('Session expired')) {
+            chrome.storage.local.remove('jwtToken', () => {
+              showLoginForm();
+            });
+          }
+        })
+        .finally(() => {
+          hideLoader(submitLoader, submitBtn);
         });
-
-      } else {
-        alert('Not authenticated. Please log in again.');
-        loginForm.style.display = 'block';
-        mainContent.style.display = 'none';
-      }
     });
   }
 
+  /**
+   * Handle user logout.
+   */
+  function handleLogout() {
+    // Confirm Logout Action
+    if (!confirm('Are you sure you want to logout?')) {
+      return;
+    }
+
+    // Show loader and disable logout button
+    showLoader(logoutLoader, logoutBtn);
+
+    // Retrieve JWT token from storage
+    chrome.storage.local.get('jwtToken', (result) => {
+      const token = result.jwtToken;
+      if (!token) {
+        hideLoader(logoutLoader, logoutBtn);
+        alert('You are already logged out.');
+        showLoginForm();
+        return;
+      }
+
+      // Send logout request without Content-Type header and without body
+      fetch(`${backendUrl}/logout`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          // 'Content-Type': 'application/json', // Removed since no body is sent
+        },
+        // No body is needed as per the backend endpoint
+      })
+        .then((response) => {
+          if (response.ok) {
+            return response.json();
+          } else {
+            throw new Error('Failed to logout. Please try again.');
+          }
+        })
+        .then((data) => {
+          alert(data.message || 'Logged out successfully.');
+          // Remove JWT token from storage
+          chrome.storage.local.remove('jwtToken', () => {
+            hideLoader(logoutLoader, logoutBtn);
+            showLoginForm();
+            resetForm();
+          });
+        })
+        .catch((error) => {
+          hideLoader(logoutLoader, logoutBtn);
+          console.error('Logout Error:', error);
+          alert(error.message);
+        });
+    });
+  }
+
+  /**
+   * Reset the form to its initial state after successful submission or logout.
+   */
   function resetForm() {
     selectedFile = null;
     uploadArea.innerHTML = '<p>Drag & Drop or Paste Media Here</p>';
     asinSelect.value = '';
-    remarks.value = '';
+    skuIdInput.value = '';
+    imageLinkInput.value = '';
+    imagePreviewImg.src = '';
+    imagePreviewDiv.classList.add('hidden');
+    remarksInput.value = '';
+    productLinkInput.value = '';
   }
+
+  // Event Listeners
+  loginBtn.addEventListener('click', handleLogin);
+
+  // Initialize the extension
+  initialize();
 });

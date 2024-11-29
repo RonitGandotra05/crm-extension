@@ -1,8 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>CRM Remarks</title>
   <style>
+    /* General Styles */
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       width: 350px;
@@ -10,11 +12,14 @@
       background-color: #f0f2f5;
       margin: 0;
     }
+
     h3 {
       text-align: center;
       color: #333;
       margin-bottom: 20px;
     }
+
+    /* Upload Area Styles */
     #upload-area {
       border: 2px dashed #ccc;
       border-radius: 10px;
@@ -28,22 +33,31 @@
       align-items: center;
       justify-content: center;
     }
+
     #upload-area.hover {
       border-color: #007BFF;
       background-color: #e9f5ff;
     }
+
     #upload-area p {
       margin: 0;
       color: #777;
       font-size: 14px;
     }
+
+    /* Form Elements Styles */
     label.input-label {
       font-weight: bold;
       margin-bottom: 5px;
       display: block;
       color: #555;
     }
-    select, textarea, input[type="text"], input[type="email"], input[type="password"] {
+
+    select,
+    textarea,
+    input[type="text"],
+    input[type="email"],
+    input[type="password"] {
       width: 100%;
       padding: 10px;
       margin-bottom: 15px;
@@ -53,15 +67,20 @@
       background-color: #fff;
       box-sizing: border-box;
     }
+
     textarea {
       resize: vertical;
       min-height: 80px;
     }
+
     input[type="text"]:read-only {
       background-color: #e9ecef;
       color: #6c757d;
     }
-    #submit-btn, #login-btn {
+
+    /* Button Styles */
+    .btn {
+      position: relative; /* For positioning the loader */
       width: 100%;
       padding: 12px;
       background-color: #007BFF;
@@ -72,16 +91,77 @@
       font-size: 16px;
       cursor: pointer;
       transition: background-color 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 10px; /* Spacing for logout button */
     }
-    #submit-btn:hover, #login-btn:hover {
+
+    .btn:hover {
       background-color: #0056b3;
     }
-    #submit-btn:active, #login-btn:active {
+
+    .btn:active {
       background-color: #004080;
     }
-    img, video {
+
+    .btn:disabled {
+      background-color: #6c757d;
+      cursor: not-allowed;
+    }
+
+    /* Loader Styles */
+    .loader {
+      border: 3px solid #f3f3f3; /* Light grey */
+      border-top: 3px solid #3498db; /* Blue */
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      animation: spin 1s linear infinite;
+      margin-left: 10px;
+      display: none; /* Hidden by default */
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Media Preview Styles */
+    img,
+    video {
       max-width: 100%;
-      max-height: 100%;
+      max-height: 150px;
+      border-radius: 5px;
+    }
+
+    /* Hidden Elements */
+    .hidden {
+      display: none;
+    }
+
+    /* Logout Button Specific Styles */
+    #logout-btn {
+      background-color: #dc3545; /* Red color for logout */
+    }
+
+    #logout-btn:hover {
+      background-color: #c82333;
+    }
+
+    #logout-btn:active {
+      background-color: #bd2130;
+    }
+
+    /* Image Preview Styles */
+    #image-preview {
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    #image-preview img {
+      max-width: 100%;
+      max-height: 150px;
       border-radius: 5px;
     }
   </style>
@@ -91,34 +171,68 @@
   <div id="login-form">
     <h3>Login</h3>
     <label class="input-label" for="email">Email:</label>
-    <input type="email" id="email" placeholder="Enter your email" />
+    <input type="email" id="email" placeholder="Enter your email" required />
+    
     <label class="input-label" for="password">Password:</label>
-    <input type="password" id="password" placeholder="Enter your password" />
-    <button id="login-btn">Login</button>
+    <input type="password" id="password" placeholder="Enter your password" required />
+    
+    <button id="login-btn" class="btn">
+      <span>Login</span>
+      <div id="login-loader" class="loader" aria-label="Loading" role="status"></div>
+    </button>
   </div>
 
   <!-- Main Content -->
-  <div id="main-content" style="display: none;">
+  <div id="main-content" class="hidden">
     <h3>Upload Media</h3>
+    
+    <!-- Logout Button -->
+    <button id="logout-btn" class="btn">
+      <span>Logout</span>
+      <div id="logout-loader" class="loader" aria-label="Loading" role="status"></div>
+    </button>
+    
+    <!-- Upload Area -->
     <div id="upload-area">
       <p>Drag & Drop or Paste Media Here</p>
     </div>
 
+    <!-- ASIN Selection -->
     <label class="input-label" for="asin-select">ASIN ID:</label>
-    <select id="asin-select">
+    <select id="asin-select" required>
       <option value="">Select ASIN ID</option>
-      <!-- ASIN IDs will be populated here -->
+      <!-- ASIN IDs will be dynamically populated here -->
     </select>
 
-    <label class="input-label" for="remarks">Remarks:</label>
-    <textarea id="remarks" placeholder="Enter remarks here..."></textarea>
+    <!-- SKU ID Display -->
+    <label class="input-label" for="sku-id">SKU ID:</label>
+    <input type="text" id="sku-id" placeholder="SKU ID" readonly />
 
+    <!-- Image Link Display -->
+    <label class="input-label" for="image-link">Image Link:</label>
+    <input type="text" id="image-link" placeholder="Image Link" readonly />
+    
+    <!-- Optional Image Preview -->
+    <div id="image-preview" class="hidden">
+      <img id="image-preview-img" src="" alt="Image Preview" />
+    </div>
+
+    <!-- Remarks Input -->
+    <label class="input-label" for="remarks">Remarks:</label>
+    <textarea id="remarks" placeholder="Enter remarks here..." required></textarea>
+
+    <!-- Product Link Display -->
     <label class="input-label" for="product-link">Product Link:</label>
     <input type="text" id="product-link" placeholder="Product Link" readonly />
 
-    <button id="submit-btn">Submit</button>
+    <!-- Submit Button -->
+    <button id="submit-btn" class="btn">
+      <span>Submit</span>
+      <div id="submit-loader" class="loader"></div>
+    </button>
   </div>
 
+  <!-- JavaScript File -->
   <script src="popup.js"></script>
 </body>
 </html>
